@@ -4,7 +4,6 @@
 Этот модуль содержит функции для генерации ключей, шифрования и
 дешифрования сообщений с использованием алгоритма RSA.
 """
-
 import random
 import typing as tp
 
@@ -13,7 +12,7 @@ def is_prime(n: int) -> bool:
     """Проверяет, является ли число n простым."""
     if n <= 1:
         return False
-    for i in range(2, int(n**0.5) + 1):
+    for i in range(2, int(n ** 0.5) + 1):
         if n % i == 0:
             return False
     return True
@@ -26,12 +25,20 @@ def gcd(a: int, b: int) -> int:
     return a
 
 
-def multiplicative_inverse(e: int, phi: int) -> int:
-    """Находит мультипликативную обратную величину для e по модулю phi."""
-    for d in range(1, phi):
-        if (e * d) % phi == 1:
-            return d
-    raise ValueError("Обратная величина не найдена.")
+def multiplicative_inverse(a: int, b: int) -> tuple[int, int, int]:
+    """
+    Расширенный алгоритм Евклида для нахождения НОД и коэффициентов x и y,
+    такие что a * x + b * y = gcd(a, b).
+    """
+    if a == 0:
+        return b, 0, 1
+
+    gcd, x1, y1 = multiplicative_inverse(b % a, a)
+
+    x = y1 - (b // a) * x1
+    y = x1
+
+    return gcd, x, y
 
 
 def generate_keypair(p: int, q: int) -> tp.Tuple[tp.Tuple[int, int], tp.Tuple[int, int]]:
@@ -50,27 +57,30 @@ def generate_keypair(p: int, q: int) -> tp.Tuple[tp.Tuple[int, int], tp.Tuple[in
         e = random.randrange(1, phi)
         g = gcd(e, phi)
 
-    d = multiplicative_inverse(e, phi)
+
+    _, d, _ = multiplicative_inverse(e, phi)
 
     return ((e, n), (d, n))
 
 
-def encrypt(pk: tp.Tuple[int, int], plaintext: str) -> tp.List[int]:
+def encrypt(pk: tp.Tuple[int, int], plaintext: str) -> list[int]:
     """Шифрует сообщение с использованием открытого ключа."""
-    key, n = pk
-    cipher = [(ord(char) ** key) % n for char in plaintext]
+    e, n = pk
+    # Используем pow() с модулем для повышения производительности
+    cipher = [pow(ord(char), e, n) for char in plaintext]
     return cipher
 
 
-def decrypt(pk: tp.Tuple[int, int], ciphertext: tp.List[int]) -> str:
+def decrypt(pk: tp.Tuple[int, int], ciphertext: list[int]) -> str:
     """Дешифрует зашифрованное сообщение с использованием закрытого ключа."""
-    key, n = pk
-    plain = [chr((char ** key) % n) for char in ciphertext]
+    d, n = pk  # Используем закрытый ключ
+    # Используем pow() для дешифровки с модулем
+    plain = [chr(pow(char, d, n)) for char in ciphertext]
     return "".join(plain)
 
 
 if __name__ == "__main__":
-    print("RSA Encrypter/ Decrypter")
+    print("RSA Encrypter/Decrypter")
 
     while True:
         try:
@@ -98,11 +108,12 @@ if __name__ == "__main__":
     print("Your public key is", public)
     print("and your private key is", private)
 
-    message = input("Enter a message to encrypt with your private key: ")
-    encrypted_msg = encrypt(private, message)
+    message = input("Enter a message to encrypt with your public key: ")  # Используем открытый ключ
+    encrypted_msg = encrypt(public, message)
     print("Your encrypted message is:")
-    print(" ".join(map(lambda x: str(x), encrypted_msg)))
+    print(" ".join(map(str, encrypted_msg)))
 
-    print("Decrypting message with public key", public, ". . .")
+    print("Decrypting message with private key", private, ". . .")
+    decrypted_msg = decrypt(private, encrypted_msg)
     print("Your message is:")
-    print(decrypt(public, encrypted_msg))
+    print(decrypted_msg)
